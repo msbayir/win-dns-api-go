@@ -176,7 +176,7 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 }
 
 const (
-	serverPort = 3111
+	serverPort = 3000
 )
 
 func main() {
