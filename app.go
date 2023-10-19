@@ -14,15 +14,20 @@ import (
 // DoDNSSet Set
 func DoDNSSet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	zoneName, dnsType, nodeName, ipAddress := vars["zoneName"], vars["dnsType"], vars["nodeName"], vars["ipAddress"]
+	zoneName, dnsType, nodeName, Address := vars["zoneName"], vars["dnsType"], vars["nodeName"], vars["Address"]
 
 	// Validate DNS Type
-	if dnsType != "A" {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "You specified an invalid record type ('" + dnsType + "'). Currently, only the 'A' (alias) record type is supported.  e.g. /dns/my.zone/A/.."})
-		return
+	if dnsType == "A" {
+		// Validate Ip Address
+		var validIPAddress = regexp.MustCompile(`^(([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)\.){3}([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)$`)
+
+		if !validIPAddress.MatchString(Address) {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid IP address ('" + Address + "'). Currently, only IPv4 addresses are accepted."})
+			return
+		}
 	}
 
-	// Validate DNS Type
+	// Validate Zone Name
 	var validZoneName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
 
 	if validZoneName.MatchString(zoneName) {
@@ -38,29 +43,63 @@ func DoDNSSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate Ip Address
-	var validIPAddress = regexp.MustCompile(`^(([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)\.){3}([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)$`)
+	dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" "+nodeName+" "+dnsType+" "+Address)
 
-	if !validIPAddress.MatchString(ipAddress) {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid IP address ('" + ipAddress + "'). Currently, only IPv4 addresses are accepted."})
+	if err := dnsAddRecord.Run(); err != nil {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add record failed, error was: " + err.Error()})
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "The alias " + dnsType + " record " + nodeName + "." + zoneName + "' was successfully updated to '" + Address + "'."})
+}
+
+// EditDNSSet Set
+func EditDNSSet(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	zoneName, dnsType, nodeName, Address := vars["zoneName"], vars["dnsType"], vars["nodeName"], vars["Address"]
+
+	// Validate DNS Type
+	if dnsType == "A" {
+		// Validate Ip Address
+		var validIPAddress = regexp.MustCompile(`^(([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)\.){3}([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)$`)
+
+		if !validIPAddress.MatchString(Address) {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid IP address ('" + Address + "'). Currently, only IPv4 addresses are accepted."})
+			return
+		}
+	}
+
+	// Validate Zone Name
+	var validZoneName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
+
+	if validZoneName.MatchString(zoneName) {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid zone name ('" + zoneName + "'). Zone names can only contain letters, numbers, dashes (-), and dots (.)."})
+		return
+	}
+
+	// Validate Node Name
+	var validNodeName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
+
+	if validNodeName.MatchString(nodeName) {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid node name ('" + nodeName + "'). Node names can only contain letters, numbers, dashes (-), and dots (.)."})
 		return
 	}
 
 	dnsCmdDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recorddelete "+zoneName+" "+nodeName+" "+dnsType+" /f")
 
 	if err := dnsCmdDeleteRecord.Run(); err != nil {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": err.Error()})
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Edit record failed, error was: " + err.Error()})
 		return
 	}
 
-	dnsAddDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" "+nodeName+" "+dnsType+" "+ipAddress)
+	dnsAddDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" "+nodeName+" "+dnsType+" "+Address)
 
 	if err := dnsAddDeleteRecord.Run(); err != nil {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": err.Error()})
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Edit record failed, error was: " + err.Error()})
 		return
 	}
-
-	respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "The alias ('A') record '" + nodeName + "." + zoneName + "' was successfully updated to '" + ipAddress + "'."})
+	retMsg := fmt.Sprintf("The alias " + dnsType + " record '" + nodeName + "." + zoneName + "' was successfully updated to '" + Address + "'.")
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": retMsg})
 }
 
 // DoDNSRemove Remove
@@ -68,17 +107,11 @@ func DoDNSRemove(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	zoneName, dnsType, nodeName := vars["zoneName"], vars["dnsType"], vars["nodeName"]
 
-	// Validate DNS Type
-	if dnsType != "A" {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "You specified an invalid record type ('" + dnsType + "'). Currently, only the 'A' (alias) record type is supported.  e.g. /dns/my.zone/A/.."})
-		return
-	}
-
-	// Validate DNS Type
+	// Validate Zone Name
 	var validZoneName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
 
 	if validZoneName.MatchString(zoneName) {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid zone name ('" + zoneName + "'). Zone names can only contain letters, numbers, dashes (-), and dots (.)."})
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": fmt.Sprintf("Invalid zone name ('" + zoneName + "'). Zone names can only contain letters, numbers, dashes (-), and dots (.).")})
 		return
 	}
 
@@ -96,8 +129,39 @@ func DoDNSRemove(w http.ResponseWriter, r *http.Request) {
 		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": err.Error()})
 		return
 	}
+	retMsg := fmt.Sprintf("The " + dnsType + " record " + nodeName + "." + zoneName + "' was successfully removed.")
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": retMsg})
+}
 
-	respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "The alias ('A') record '" + nodeName + "." + zoneName + "' was successfully removed."})
+// EnsureDNS get
+func EnsureDNS(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	zoneName, nodeName := vars["zoneName"], vars["nodeName"]
+
+	// Validate Zone Name
+	var validZoneName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
+
+	if validZoneName.MatchString(zoneName) {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": fmt.Sprintf("Invalid zone name ('" + zoneName + "'). Zone names can only contain letters, numbers, dashes (-), and dots (.).")})
+		return
+	}
+
+	// Validate Node Name
+	var validNodeName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
+
+	if validNodeName.MatchString(nodeName) {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid node name ('" + nodeName + "'). Node names can only contain letters, numbers, dashes (-), and dots (.)."})
+		return
+	}
+
+	dnsCmdDeleteRecord := exec.Command("cmd", "/C", "dnscmd /enumrecords "+zoneName+" "+nodeName+" /additional")
+
+	if err := dnsCmdDeleteRecord.Run(); err != nil {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": err.Error()})
+		return
+	}
+	retMsg := fmt.Sprintf("The" + " record " + nodeName + "." + zoneName + "' is exist.")
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": retMsg})
 }
 
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
@@ -123,12 +187,10 @@ func main() {
 		respondWithJSON(w, http.StatusOK, map[string]string{"message": "Welcome to Win DNS API Go"})
 	})
 
-	r.Methods("GET").Path("/dns/{zoneName}/{dnsType}/{nodeName}/set/{ipAddress}").HandlerFunc(DoDNSSet)
-	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/set/{ipAddress}").HandlerFunc(DoDNSSet)
-
-	r.Methods("GET").Path("/dns/{zoneName}/{dnsType}/{nodeName}/remove").HandlerFunc(DoDNSRemove)
+	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/set/{Address}").HandlerFunc(DoDNSSet)
+	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/edit/{Address}").HandlerFunc(EditDNSSet)
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/remove").HandlerFunc(DoDNSRemove)
-
+	r.Methods("GET").Path("/dns/{zoneName}/{nodeName}").HandlerFunc(EnsureDNS)
 	fmt.Printf("Listening on port %d.\n", serverPort)
 
 	// Start HTTP Server
