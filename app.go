@@ -48,7 +48,7 @@ func DoDNSZoneSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, map[string]string{"message": "The alias " + zoneName + "' was successfully updated to '" + soa + "'."})
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "The alias " + zoneName + "' was successfully updated to '" + dnsContent + "'."})
 }
 
 
