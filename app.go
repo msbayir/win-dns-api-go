@@ -15,7 +15,13 @@ import (
 // DoDNSSet Set
 func DoDNSZoneSet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	zoneName, Address := vars["zoneName"], vars["Address"]
+	zoneName := vars["zoneName"]
+	soa := r.URL.Query().Get("soa")
+
+	if soa == "" {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "SOA info cannot null."})
+		return
+    	}
 
 	var validZoneName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
 	if validZoneName.MatchString(zoneName) {
@@ -30,7 +36,7 @@ func DoDNSZoneSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" @ "+Address)
+	dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" @ SOA "+soa)
 
 	if err := dnsAddRecord.Run(); err != nil {
 		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add zone record failed, error was: " + err.Error()})
@@ -217,8 +223,9 @@ func main() {
 		respondWithJSON(w, http.StatusOK, map[string]string{"message": "Welcome to Win DNS API Go"})
 	})
 
-	
-	r.Methods("POST").Path("/dns/{zoneName}/set-zone/{Address}").HandlerFunc(DoDNSZoneSet)
+
+	// set zone with soa query ?soa=
+	r.Methods("POST").Path("/dns/{zoneName}/set-zone/").HandlerFunc(DoDNSZoneSet)
 	
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/set/{Address}").HandlerFunc(DoDNSSet)
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/edit/{Address}").HandlerFunc(EditDNSSet)
