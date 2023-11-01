@@ -11,6 +11,36 @@ import (
 	"github.com/gorilla/mux"
 )
 
+
+// DoDNSSet Set
+func DoDNSZoneSet(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	zoneName, Address := vars["zoneName"], vars["Address"]
+
+	var validZoneName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
+	if validZoneName.MatchString(zoneName) {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid zone name ('" + zoneName + "'). Zone names can only contain letters, numbers, dashes (-), and dots (.)."})
+		return
+	}
+
+	dnsAddZone := exec.Command("cmd", "/C", "dnscmd /zoneadd "+zoneName+" /primary")
+
+	if err := dnsAddZone.Run(); err != nil {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add zone failed, error was: " + err.Error()})
+		return
+	}
+	
+	dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" @ "+Address)
+
+	if err := dnsAddRecord.Run(); err != nil {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add zone record failed, error was: " + err.Error()})
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "The alias " + zoneName + "' was successfully updated to '" + Address + "'."})
+}
+
+
 // DoDNSSet Set
 func DoDNSSet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -187,6 +217,9 @@ func main() {
 		respondWithJSON(w, http.StatusOK, map[string]string{"message": "Welcome to Win DNS API Go"})
 	})
 
+	
+	r.Methods("POST").Path("/dns/{zoneName}/set-zone/{Address}").HandlerFunc(DoDNSZoneSet)
+	
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/set/{Address}").HandlerFunc(DoDNSSet)
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/edit/{Address}").HandlerFunc(EditDNSSet)
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/remove").HandlerFunc(DoDNSRemove)
