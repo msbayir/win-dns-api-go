@@ -176,8 +176,8 @@ func DoDNSARemove(w http.ResponseWriter, r *http.Request) {
 			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Edit record failed, error was: " + err.Error()})
 			return
 		}
-	
-	retMsg := fmt.Sprintf("The alias" + zoneName + " --> " + Address +"deleted...")
+
+	retMsg := fmt.Sprintf("The alias %s %s deleted...", zoneName, Address)
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": retMsg})
 }
 
