@@ -38,7 +38,7 @@ func DoDNSZoneSet(w http.ResponseWriter, r *http.Request) {
 		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add zone record failed, error was: " + err.Error()})
 		return
 	}
-	
+
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "The alias " + zoneName + "' was successfully updated."})
 }
 
@@ -89,6 +89,8 @@ func EditDNSSet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	zoneName, dnsType, nodeName, Address := vars["zoneName"], vars["dnsType"], vars["nodeName"], vars["Address"]
 
+	dnsContent := r.URL.Query().Get("dns_content")
+
 	// Validate DNS Type
 	if dnsType == "A" {
 		// Validate Ip Address
@@ -116,19 +118,38 @@ func EditDNSSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dnsCmdDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recorddelete "+zoneName+" "+nodeName+" "+dnsType+" /f")
+	if dnsContent == "" {
+		dnsCmdDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recorddelete "+zoneName+" "+nodeName+" "+dnsType+" /f")
 
-	if err := dnsCmdDeleteRecord.Run(); err != nil {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Edit record failed, error was: " + err.Error()})
-		return
+		if err := dnsCmdDeleteRecord.Run(); err != nil {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Edit record failed, error was: " + err.Error()})
+			return
+		}
+
+		dnsAddDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" "+nodeName+" "+dnsType+" "+Address)
+
+		if err := dnsAddDeleteRecord.Run(); err != nil {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Edit record failed, error was: " + err.Error()})
+			return
+		}
+	} else {
+
+		// dnscmd /recorddelete gorkemacar.com @ TXT
+		dnsCmdDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recorddelete "+zoneName+" @ "+dnsType+" "+dnsContent+" /f")
+
+		if err := dnsCmdDeleteRecord.Run(); err != nil {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Edit record failed, error was: " + err.Error()})
+			return
+		}
+
+		dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" @ "+dnsType+" "+dnsContent)
+		if err := dnsAddRecord.Run(); err != nil {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add zone record failed, error was: " + err.Error()})
+			return
+		}
+
 	}
 
-	dnsAddDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" "+nodeName+" "+dnsType+" "+Address)
-
-	if err := dnsAddDeleteRecord.Run(); err != nil {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Edit record failed, error was: " + err.Error()})
-		return
-	}
 	retMsg := fmt.Sprintf("The alias " + dnsType + " record '" + nodeName + "." + zoneName + "' was successfully updated to '" + Address + "'.")
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": retMsg})
 }
