@@ -177,7 +177,7 @@ func DoDNSARemove(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	
-	retMsg := fmt.Sprintf("The alias " + dnsType + " record '" + nodeName + "." + zoneName + "' was successfully updated to '" + Address + "'.")
+	retMsg := fmt.Sprintf("The alias" + zoneName + " --> " + Address +"deleted...")
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": retMsg})
 }
 
