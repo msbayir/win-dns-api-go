@@ -11,19 +11,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-
 // DoDNSSet Set
 func DoDNSZoneSet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	zoneName, dnsType := vars["zoneName"], vars["dnsType"]
-	primaryName := r.URL.Query().Get("primary_name")
-	primaryContact := r.URL.Query().Get("primary_contact")
-	serial := r.URL.Query().Get("serial")
-	zoneRefresh := r.URL.Query().Get("zone_refresh")
-	failedRefresh := r.URL.Query().Get("failed_refresh")
-	zoneExpiry := r.URL.Query().Get("zone_expiry")
-	ttl := r.URL.Query().Get("ttl")
-	ns := r.URL.Query().Get("ns")
+	zoneName, dnsType, dnsContent := vars["zoneName"], vars["dnsType"], vars["dnsContent"]
 
 	var validZoneName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
 	if validZoneName.MatchString(zoneName) {
@@ -41,25 +32,15 @@ func DoDNSZoneSet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// SOA or NS (dnsType) record is updated.
-	if dnsType == "SOA" {
-		dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" @ "+dnsType+" "+primaryName+" "+primaryContact+" "+serial+" "+zoneRefresh+" "+failedRefresh+" "+zoneExpiry+" "+ttl)
-		if err := dnsAddRecord.Run(); err != nil {
-			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add SOA zone record failed, error was: " + err.Error()})
-			return
-		}
-
-	} else {
-		dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" @ "+dnsType+" "+ns)
-		if err := dnsAddRecord.Run(); err != nil {
-			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add NS zone record failed, error was: " + err.Error()})
-			return
-		}
-
+	dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" @ "+dnsType+" "+dnsContent)
+	if err := dnsAddRecord.Run(); err != nil {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add zone record failed, error was: " + err.Error()})
+		return
 	}
-
+	
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "The alias " + zoneName + "' was successfully updated."})
 }
+
 // DoDNSSet Set
 func DoDNSSet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -236,10 +217,8 @@ func main() {
 		respondWithJSON(w, http.StatusOK, map[string]string{"message": "Welcome to Win DNS API Go"})
 	})
 
-
-	// set zone with query ?dns_content=
 	r.Methods("POST").Path("/dns/{zoneName}/set-zone/{dnsType}").HandlerFunc(DoDNSZoneSet)
-	
+
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/set/{Address}").HandlerFunc(DoDNSSet)
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/edit/{Address}").HandlerFunc(EditDNSSet)
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/remove").HandlerFunc(DoDNSRemove)
