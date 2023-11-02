@@ -156,7 +156,7 @@ func EditDNSSet(w http.ResponseWriter, r *http.Request) {
 
 func DoDNSARemove(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	zoneName, Address := vars["zoneName"], vars["dnsType"], vars["Address"]
+	zoneName, Address := vars["zoneName"], vars["Address"]
 
 	// Validate DNS Type
 	// if dnsType == "A" {
