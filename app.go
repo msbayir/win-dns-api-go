@@ -110,15 +110,15 @@ func EditDNSSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate Node Name
-	var validNodeName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
-
-	if validNodeName.MatchString(nodeName) {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid node name ('" + nodeName + "'). Node names can only contain letters, numbers, dashes (-), and dots (.)."})
-		return
-	}
-
 	if dnsContent == "" {
+		// Validate Node Name
+		var validNodeName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
+
+		if validNodeName.MatchString(nodeName) {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid node name ('" + nodeName + "'). Node names can only contain letters, numbers, dashes (-), and dots (.)."})
+			return
+		}
+
 		dnsCmdDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recorddelete "+zoneName+" "+nodeName+" "+dnsType+" /f")
 
 		if err := dnsCmdDeleteRecord.Run(); err != nil {
