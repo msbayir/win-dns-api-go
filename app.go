@@ -134,8 +134,8 @@ func EditDNSSet(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 
-		// dnscmd /recorddelete gorkemacar.com @ TXT
-		dnsCmdDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recorddelete "+zoneName+" @ "+dnsType+" "+dnsContent+" /f")
+		// dnscmd /recorddelete domain @ TXT
+		dnsCmdDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recorddelete "+zoneName+" @ "+dnsType+" /f")
 
 		if err := dnsCmdDeleteRecord.Run(); err != nil {
 			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Edit record failed, error was: " + err.Error()})
