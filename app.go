@@ -154,6 +154,33 @@ func EditDNSSet(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": retMsg})
 }
 
+func DoDNSARemove(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	zoneName, Address := vars["zoneName"], vars["dnsType"], vars["Address"]
+
+	// Validate DNS Type
+	// if dnsType == "A" {
+		// Validate Ip Address
+		var validIPAddress = regexp.MustCompile(`^(([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)\.){3}([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)$`)
+
+		if !validIPAddress.MatchString(Address) {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid IP address ('" + Address + "'). Currently, only IPv4 addresses are accepted."})
+			return
+		}
+	// }
+
+		// dnsCmdDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recorddelete "+zoneName+" @ "+dnsType+" /f")
+		dnsCmdDeleteRecord := exec.Command("cmd", "/C", "dnscmd /recorddelete "+zoneName+" @ A "+Address+" /f")
+
+		if err := dnsCmdDeleteRecord.Run(); err != nil {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Edit record failed, error was: " + err.Error()})
+			return
+		}
+	
+	retMsg := fmt.Sprintf("The alias " + dnsType + " record '" + nodeName + "." + zoneName + "' was successfully updated to '" + Address + "'.")
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": retMsg})
+}
+
 // DoDNSRemove Remove
 func DoDNSRemove(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -240,7 +267,8 @@ func main() {
 	})
 
 	r.Methods("POST").Path("/dns/{zoneName}/set-zone/{dnsType}").HandlerFunc(DoDNSZoneSet)
-
+	r.Methods("POST").Path("/dns/{zoneName}/{Address}").HandlerFunc(DoDNSARemove)
+	
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/set/{Address}").HandlerFunc(DoDNSSet)
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/edit/{Address}").HandlerFunc(EditDNSSet)
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/remove").HandlerFunc(DoDNSRemove)
