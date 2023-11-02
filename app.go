@@ -14,7 +14,8 @@ import (
 // DoDNSSet Set
 func DoDNSZoneSet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	zoneName, dnsType, dnsContent := vars["zoneName"], vars["dnsType"], vars["dnsContent"]
+	zoneName, dnsType, dnsContent := vars["zoneName"], vars["dnsType"]
+	dnsContent := r.URL.Query().Get("dns_content")
 
 	var validZoneName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
 	if validZoneName.MatchString(zoneName) {
