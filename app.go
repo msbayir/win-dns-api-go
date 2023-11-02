@@ -229,8 +229,8 @@ func main() {
 	})
 
 
-	// set zone with soa query ?soa=
-	r.Methods("POST").Path("/dns/{zoneName}/set-zone/{dnsType}/").HandlerFunc(DoDNSZoneSet)
+	// set zone with query ?dns_content=
+	r.Methods("GET").Path("/dns/{zoneName}/set-zone/{dnsType}").HandlerFunc(DoDNSZoneSet)
 	
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/set/{Address}").HandlerFunc(DoDNSSet)
 	r.Methods("POST").Path("/dns/{zoneName}/{dnsType}/{nodeName}/edit/{Address}").HandlerFunc(EditDNSSet)
