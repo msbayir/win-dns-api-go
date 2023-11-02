@@ -16,19 +16,20 @@ import (
 func DoDNSZoneSet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	zoneName, dnsType := vars["zoneName"], vars["dnsType"]
-	dnsContent := r.URL.Query().Get("dns_content")
-
-	if dnsContent == "" {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "DNS Content info cannot null."})
-		return
-    	}
+	primaryName := r.URL.Query().Get("primary_name")
+	primaryContact := r.URL.Query().Get("primary_contact")
+	serial := r.URL.Query().Get("serial")
+	zoneRefresh := r.URL.Query().Get("zone_refresh")
+	failedRefresh := r.URL.Query().Get("failed_refresh")
+	zoneExpiry := r.URL.Query().Get("zone_expiry")
+	ttl := r.URL.Query().Get("ttl")
+	ns := r.URL.Query().Get("ns")
 
 	var validZoneName = regexp.MustCompile(`[^A-Za-z0-9\.-]+`)
 	if validZoneName.MatchString(zoneName) {
 		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid zone name ('" + zoneName + "'). Zone names can only contain letters, numbers, dashes (-), and dots (.)."})
 		return
 	}
-
 
 	// If SOA is not created, SOA is created first.
 	if dnsType == "SOA" {
@@ -41,17 +42,24 @@ func DoDNSZoneSet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// SOA or NS (dnsType) record is updated.
-	dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" @ "+dnsType+" "+dnsContent)	
-	
-	if err := dnsAddRecord.Run(); err != nil {
-		respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add zone record failed, error was: " + err.Error()})
-		return
+	if dnsType == "SOA" {
+		dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" @ "+dnsType+" "+primaryName+" "+primaryContact+" "+serial+" "+zoneRefresh+" "+failedRefresh+" "+zoneExpiry+" "+ttl)
+		if err := dnsAddRecord.Run(); err != nil {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add SOA zone record failed, error was: " + err.Error()})
+			return
+		}
+
+	} else {
+		dnsAddRecord := exec.Command("cmd", "/C", "dnscmd /recordadd "+zoneName+" @ "+dnsType+" "+ns)
+		if err := dnsAddRecord.Run(); err != nil {
+			respondWithJSON(w, http.StatusBadRequest, map[string]string{"message": "Add NS zone record failed, error was: " + err.Error()})
+			return
+		}
+
 	}
 
-	respondWithJSON(w, http.StatusOK, map[string]string{"message": "The alias " + zoneName + "' was successfully updated to '" + dnsContent + "'."})
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "The alias " + zoneName + "' was successfully updated."})
 }
-
-
 // DoDNSSet Set
 func DoDNSSet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
